@@ -65,16 +65,13 @@ int main(int argc, char *argv[]) {
   printf("chunk metadata\nlen: %d\ntype: %s\ncrc: %d\n", c->len, c->type,
          c->crc);
 
-  printf("data is null: %s\n", (char *)c->data);
-
   // print chunk data
   for (size_t i = 0; i < sizeof(c->data); i++) {
-    // FIXME: memory leak here
-    // see ln#118
-    printf(" %X", c->data[i]);
+    printf(" %02X", c->data[i]);
   }
   printf("\n");
 
+  free(c->data);
   free(c);
   free(f_hdr);
   fclose(f);
@@ -113,17 +110,12 @@ int read_chunk(FILE *f, Chunk *c, size_t off) {
     return -1;
   }
 
-  memcpy(&c->data, buf, c->len);
+  c->data = malloc(c->len * sizeof(unsigned char));
 
-  // size after alloc
-  // data: 8
-  // buf: 8
-  // len: 13
-  printf("after alloc: %d, %d, %d\n", (int)sizeof(c->data), c->len,
-         (int)sizeof(&buf));
+  memcpy(c->data, buf, c->len);
 
   // Big Endian copy
-  c->len = ((uint32_t)buf[c->len] << 24) | ((uint32_t)buf[c->len + 1] << 16) |
+  c->crc = ((uint32_t)buf[c->len] << 24) | ((uint32_t)buf[c->len + 1] << 16) |
            ((uint32_t)buf[c->len + 2] << 8) | (uint32_t)buf[c->len + 3];
 
   free(buf);
