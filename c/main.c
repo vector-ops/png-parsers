@@ -1,7 +1,11 @@
+#include "crc32.c"
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define CRC32_FAST
 
 typedef struct {
   uint32_t len;
@@ -13,6 +17,7 @@ typedef struct {
 int get_signature(FILE *f, unsigned char *dst, size_t off);
 int is_png(const unsigned char *hdr);
 int read_chunk(FILE *f, Chunk chunk[], size_t off);
+int test_crc(Chunk c);
 
 int main(int argc, char *argv[]) {
 
@@ -60,6 +65,14 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
+  int crc_pass = test_crc(*c);
+
+  if (!crc_pass) {
+    printf("intigrity test: FAIL\n");
+  } else {
+    printf("intigrity test: PASS\n");
+  }
+
   offset += n;
 
   printf("chunk metadata\nlen: %d\ntype: %s\ncrc: %d\n", c->len, c->type,
@@ -77,6 +90,25 @@ int main(int argc, char *argv[]) {
   fclose(f);
 
   return 0;
+}
+
+int test_crc(Chunk c) {
+  // crc is computed over the chunk type and chunk data
+
+  unsigned char *data = (unsigned char *)malloc(c.len + 4);
+
+  memcpy(data, c.type, 4);
+  memcpy(data + 4, c.data, c.len);
+
+  unsigned int crc = crc32(data, c.len + 4);
+
+  free(data);
+
+  if (crc != (unsigned int)c.crc) {
+    return 0;
+  }
+
+  return 1;
 }
 
 int read_chunk(FILE *f, Chunk *c, size_t off) {
