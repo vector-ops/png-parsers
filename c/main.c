@@ -18,6 +18,7 @@ int get_signature(FILE *f, unsigned char *dst, size_t off);
 int is_png(const unsigned char *hdr);
 int read_chunk(FILE *f, Chunk chunk[], size_t off);
 int test_crc(Chunk c);
+void print_chunk(Chunk c);
 
 int main(int argc, char *argv[]) {
 
@@ -65,24 +66,21 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  int crc_pass = test_crc(*c);
+  while (strcmp(c->type, "IEND") != 0) {
 
-  if (!crc_pass) {
-    printf("intigrity test: FAIL\n");
-  } else {
-    printf("intigrity test: PASS\n");
+    offset += n;
+
+    print_chunk(*c);
+
+    free(c->data);
+    free(c);
+    c = malloc(sizeof(Chunk));
+    n = read_chunk(f, c, offset);
+    if (n == -1) {
+      printf("failed to read chunk\n");
+      exit(1);
+    }
   }
-
-  offset += n;
-
-  printf("chunk metadata\nlen: %d\ntype: %s\ncrc: %d\n", c->len, c->type,
-         c->crc);
-
-  // print chunk data
-  for (size_t i = 0; i < sizeof(c->data); i++) {
-    printf(" %02X", c->data[i]);
-  }
-  printf("\n");
 
   free(c->data);
   free(c);
@@ -113,7 +111,8 @@ int test_crc(Chunk c) {
 
 int read_chunk(FILE *f, Chunk *c, size_t off) {
   if (c == NULL) {
-    c = malloc(sizeof(Chunk));
+    printf("received uninitialized chunk\n");
+    return -1;
   }
 
   unsigned char *buf = (unsigned char *)malloc(8 * sizeof(unsigned char));
@@ -128,7 +127,7 @@ int read_chunk(FILE *f, Chunk *c, size_t off) {
   c->len = ((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16) |
            ((uint32_t)buf[2] << 8) | (uint32_t)buf[3];
 
-  memcpy(&c->type, buf + 4, 4);
+  memcpy(c->type, buf + 4, 4);
 
   unsigned char *tmp =
       (unsigned char *)realloc(buf, (c->len + 4) * sizeof(unsigned char));
@@ -181,4 +180,24 @@ int is_png(const unsigned char *hdr) {
   free(hdr_s);
 
   return 0;
+}
+
+void print_chunk(Chunk c) {
+
+  int crc_pass = test_crc(c);
+
+  printf("chunk %s\nlen: %d\ntype: %s\ncrc: %d\n", c.type, c.len, c.type,
+         c.crc);
+
+  if (!crc_pass) {
+    printf("intigrity test: FAIL\n\n");
+  } else {
+    printf("intigrity test: PASS\n\n");
+  }
+
+  // print chunk data
+  // for (size_t i = 0; i < c.len; i++) {
+  //   printf(" %02X", c.data[i]);
+  // }
+  // printf("\n");
 }
