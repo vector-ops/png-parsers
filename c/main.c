@@ -9,7 +9,7 @@
 
 typedef struct {
   uint32_t len;
-  char type[4];
+  char type[5];
   unsigned char *data;
   uint32_t crc;
 } Chunk;
@@ -128,6 +128,7 @@ int read_chunk(FILE *f, Chunk *c, size_t off) {
            ((uint32_t)buf[2] << 8) | (uint32_t)buf[3];
 
   memcpy(c->type, buf + 4, 4);
+  c->type[4] = '\0';
 
   unsigned char *tmp =
       (unsigned char *)realloc(buf, (c->len + 4) * sizeof(unsigned char));
